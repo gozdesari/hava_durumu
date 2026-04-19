@@ -6,7 +6,7 @@ from datetime import datetime
 
 API_URL = "https://api.open-meteo.com/v1/forecast?latitude=41.0015&longitude=39.7178&current=temperature_2m,relative_humidity_2m,wind_speed_10m"
 
-WS_URL = "ws://127.0.0.1:8000/ws"
+WS_URL = "ws://13.60.190.70:8000/ws"
 
 
 async def send_weather_data():
