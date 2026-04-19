@@ -1,83 +1,48 @@
-import sqlite3
+import boto3
+import uuid
+from decimal import Decimal
 
-DB_NAME = "weather.db"
+REGION = "eu-north-1"
 
-def create_table():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+dynamodb = boto3.resource("dynamodb", region_name=REGION)
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS weather_data (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        city TEXT,
-        temperature REAL,
-        humidity INTEGER,
-        wind_speed REAL,
-        timestamp TEXT
-    )
-    """)
+weather_data_table = dynamodb.Table("weather_data")
+weather_analysis_table = dynamodb.Table("weather_analysis")
 
-    conn.commit()
-    conn.close()
 
 def insert_data(data):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    weather_data_table.put_item(
+        Item={
+            "id": str(uuid.uuid4()),
+            "city": data["city"],
+            "temperature": Decimal(str(data["temperature"])),
+            "humidity": int(data["humidity"]),
+            "wind_speed": Decimal(str(data["wind_speed"])),
+            "timestamp": data["timestamp"]
+        }
+    )
 
-    cursor.execute("""
-    INSERT INTO weather_data (city, temperature, humidity, wind_speed, timestamp)
-    VALUES (?, ?, ?, ?, ?)
-    """, (
-        data["city"],
-        data["temperature"],
-        data["humidity"],
-        data["wind_speed"],
-        data["timestamp"]
-    ))
-
-    conn.commit()
-    conn.close()
 
 def get_last_temperatures(limit=5):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    response = weather_data_table.scan()
+    items = response.get("Items", [])
 
-    cursor.execute("""
-    SELECT temperature FROM weather_data
-    ORDER BY id DESC
-    LIMIT ?
-    """, (limit,))
+    items = sorted(items, key=lambda x: x["timestamp"], reverse=True)
 
-    rows = cursor.fetchall()
-    conn.close()
+    temps = []
+    for item in items[:limit]:
+        temps.append(float(item["temperature"]))
 
-    return [row[0] for row in rows]
+    return temps
 
-def create_analysis_table():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS weather_analysis (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        average_temperature REAL,
-        max_temperature REAL,
-        warning TEXT,
-        analysis_time TEXT
-    )
-    """)
-
-    conn.commit()
-    conn.close()
 
 def insert_analysis(avg_temp, max_temp, warning, analysis_time):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    INSERT INTO weather_analysis (average_temperature, max_temperature, warning, analysis_time)
-    VALUES (?, ?, ?, ?)
-    """, (avg_temp, max_temp, warning, analysis_time))
-
-    conn.commit()
-    conn.close()
+    weather_analysis_table.put_item(
+        Item={
+            "id": str(uuid.uuid4()),
+            "average_temperature": Decimal(str(avg_temp)),
+            "max_temperature": Decimal(str(max_temp)),
+            "warning": warning,
+            "analysis_time": analysis_time
+        }
+    )

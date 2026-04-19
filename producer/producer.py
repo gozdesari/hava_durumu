@@ -8,6 +8,7 @@ API_URL = "https://api.open-meteo.com/v1/forecast?latitude=41.0015&longitude=39.
 
 WS_URL = "ws://127.0.0.1:8000/ws"
 
+
 async def send_weather_data():
     while True:
         try:
@@ -34,5 +35,6 @@ async def send_weather_data():
             print("Hata oluştu:", e)
 
         await asyncio.sleep(10)
+
 
 asyncio.run(send_weather_data())

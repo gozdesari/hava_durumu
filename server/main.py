@@ -4,22 +4,15 @@ import sys
 
 sys.path.append("../database")
 
-from database import (
-    create_table,
-    insert_data,
-    get_last_temperatures,
-    create_analysis_table,
-    insert_analysis
-)
+from database import insert_data, get_last_temperatures, insert_analysis
 
 app = FastAPI()
 
-create_table()
-create_analysis_table()
 
 @app.get("/")
 def read_root():
     return {"message": "Server çalışıyor"}
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -32,30 +25,36 @@ async def websocket_endpoint(websocket: WebSocket):
             print("Gelen veri:", data)
 
             parsed_data = json.loads(data)
-            insert_data(parsed_data)
 
-            temps = get_last_temperatures()
+            try:
+                insert_data(parsed_data)
 
-            if temps:
-                avg_temp = sum(temps) / len(temps)
-                max_temp = max(temps)
+                temps = get_last_temperatures()
 
-                warning = "Normal"
-                if parsed_data["temperature"] > 25:
-                    warning = "Sıcaklık çok yüksek!"
+                if temps:
+                    avg_temp = sum(temps) / len(temps)
+                    max_temp = max(temps)
 
-                print(f"Ortalama sıcaklık: {avg_temp:.2f}")
-                print(f"Max sıcaklık: {max_temp}")
-                print(f"Uyarı: {warning}")
+                    warning = "Normal"
+                    if parsed_data["temperature"] > 25:
+                        warning = "Sıcaklık çok yüksek!"
 
-                insert_analysis(
-                    avg_temp,
-                    max_temp,
-                    warning,
-                    parsed_data["timestamp"]
-                )
+                    print(f"Ortalama sıcaklık: {avg_temp:.2f}")
+                    print(f"Max sıcaklık: {max_temp}")
+                    print(f"Uyarı: {warning}")
 
-            await websocket.send_text(f"Veri alındı: {data}")
+                    insert_analysis(
+                        avg_temp,
+                        max_temp,
+                        warning,
+                        parsed_data["timestamp"]
+                    )
+
+                await websocket.send_text(f"Veri alındı: {data}")
+
+            except Exception as e:
+                print("DynamoDB / işleme hatası:", e)
+                await websocket.send_text(f"Hata oluştu: {str(e)}")
 
     except WebSocketDisconnect:
         print("Client bağlantıyı kapattı")
